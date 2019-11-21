@@ -1,0 +1,187 @@
+一、安装Docker
+1、更新yum    yum update
+
+2、安装Docker需要的软件包   yum install -y yum-utils device-mapper-persistent-data lvm2
+
+3、设置yum源   yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+
+4、查看docker仓库中所有docker版本，选择安装    yum list docker-ce --showduplicates | sort -r
+
+5、安装 yum install docker-ce-版本号    （由于网络原因，可能会失败，重试几次，直到成功）
+yum install docker-ce-18.03.1.ce
+
+6、启动Docker     systemctl start docker
+
+7、加入Docker开机启动   systemctl enable  docker 
+
+8、检查安装情况  docker version
+
+9、设置镜像地址：vim /etc/docker/daemon.json
+{
+  "registry-mirrors": ["http://hub-mirror.c.163.com"]
+}
+
+
+
+
+
+二、部署：举例lion-omp
+
+
+1、将lion-omp打成可执行jar
+
+2、编写Dockerfile
+
+3、在服务器新建一个文件夹，用于存放可执行jar  和 Dockerfile
+
+4、打包Docker镜像   docker build -t lion-omp ./
+
+5、运行镜像  docker run -d -p 9099:9099 --name lion-omp  lion-omp
+
+6、镜像状态：docker ps -a
+
+7、查看日志：docker logs -f  lion-omp
+
+8、VBox配置转发端口  9099 ----> 9000
+
+9、浏览器访问   http://localhost:9000/index
+
+
+
+三、镜像上传
+镜像管理平台地址：http://10.219.8.35/harbor/
+仓库地址：10.219.8.35
+
+失败案例：
+{
+  "registry-mirrors": ["http://hub-mirror.c.163.com"], 
+  "insecure-registries": ["10.219.8.35"], 
+  "max-concurrent-downloads": 10
+}
+
+docker login 10.219.8.35
+
+
+成功案例：
+
+1、修改host映射
+vi /etc/hosts
+
+增加映射   10.219.8.35   iovhub.com
+
+2、修改daemon.json
+vim /etc/docker/daemon.json
+{
+  "registry-mirrors": ["http://hub-mirror.c.163.com"], 
+  "insecure-registries": [" iovhub.com"], 
+  "max-concurrent-downloads": 10
+}
+
+3、重启docker
+systemctl restart docker
+
+4、登录docker 
+docker login  iovhub.com
+
+5、新建标签
+docker tag lion-admin iovhub.com/test/lion-admin:v1.0
+
+6、推送
+docker push iovhub.com/test/lion-admin:v1.0
+
+docker run -d -p 9099:9099  lion-omp
+
+
+
+docker tag lion-omp iovhub.com/test/lion-omp:v1.0
+docker push iovhub.com/test/lion-omp:v1.0
+
+
+
+四、Dockerfile编写
+
+成功示例：
+
+FROM java:8
+
+MAINTAINER "Wenfeng.Huang@desay-svautomotive.com"
+VOLUME /tmp
+ADD lion-admin.jar lion-admin.jar
+ENTRYPOINT ["java","-Djava.security.egd=file:/dev/./urandom","-jar","/lion-admin.jar", "--server.port=9908"]
+
+
+EXPOSE 9908
+
+
+
+http://localhost:9098/job-admin/toLogin
+
+
+
+五、Docker资源
+
+https://gitee.com/kennylee/docker
+https://gitee.com/koma/docker-kafka
+
+
+
+基于open-api的
+
+docker build -t oapi:v1.0 ./
+ docker run -d -p 10090:10090 --name oapi  oapi:v1.0
+
+
+
+
+docker run -d -p 10090:10090 --name oauth  oauth:v1.0 -v /data/logs/open-api-oauth:/data/logs/open-api-oauth
+
+
+https://blog.csdn.net/realjh/article/details/82048492
+开启防火墙：
+systemctl start firewalld.service
+开放端口
+
+（1）查看对外开放的端口状态
+查询已开放的端口 netstat -anp
+查询指定端口是否已开 firewall-cmd --query-port=666/tcp
+提示 yes，表示开启；no表示未开启。
+
+
+（2）查看防火墙状态
+查看防火墙状态 systemctl status firewalld
+开启防火墙 systemctl start firewalld  
+关闭防火墙 systemctl stop firewalld
+开启防火墙 service firewalld start 
+若遇到无法开启
+先用：systemctl unmask firewalld.service 
+然后：systemctl start firewalld.service
+
+（3）对外开发端口
+查看想开的端口是否已开：
+firewall-cmd --query-port=6379/tcp
+
+
+添加指定需要开放的端口：
+firewall-cmd --add-port=123/tcp --permanent
+重载入添加的端口：
+firewall-cmd --reload
+查询指定端口是否开启成功：
+firewall-cmd --query-port=123/tcp
+
+
+firewall-cmd --add-port=10090/tcp --permanent
+
+
+
+查看容器挂载目录挂载到哪里去了？
+docker inspect 容器ID
+
+
+进入docker容器里查看日志
+
+
+docker exec -it oapi bash
+
+curl -d'test=123'-X POST localhost:10090/sv/v1/services/api
+
+curl http://localhost:10090/oauth2/getAccessToken?code=192
